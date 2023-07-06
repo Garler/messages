@@ -3,6 +3,7 @@ package ru.netology
 fun main() {
     ChatService.addMessage(1, Message(type = "in", text = "Hello"))
     ChatService.addMessage(1, Message(type = "out", text = "Hi"))
+    ChatService.addMessage(1, Message(type = "in", text = "how are you?"))
     ChatService.addMessage(2, Message(type = "out", text = "OK"))
 //    ChatService.addMessage(2, Message(type = "in", text = ":)))"))
 //    ChatService.addMessage(1, Message(type = "in", text = "OK"))
@@ -12,6 +13,7 @@ fun main() {
     ChatService.deleteMessage(2, 1)
     println(ChatService.getChats())
     println(ChatService.getUnreadChatsCount())
+    println(ChatService.getMessages(1, 1))
 }
 
 class NotFoundException(message: String) : RuntimeException(message)
@@ -41,28 +43,28 @@ object ChatService {
     }
 
     //3. Получить список последних сообщений из чатов (можно в виде списка строк). Если сообщений в чате нет (все были удалены), то пишется «нет сообщений».
-    fun lastMessages() = chats.values.map { chat ->
-        chat.messages.lastOrNull { !it.deleted }?.text ?: throw NotFoundException("Нет сообщений")
-    }
+    fun lastMessages() = chats.values.asSequence()
+        .map { it.messages.last() }
+        .filter { !it.deleted }
+        .joinToString(separator = "\n") { it.text }
+        .ifEmpty { throw NotFoundException("Нет чатов") }
 
     //4. Получить список сообщений из чата, указав:
     //ID чата;
     //ID последнего сообщения, начиная с которого нужно подгрузить более новые;
     //количество сообщений. После того как вызвана эта функция, все отданные сообщения автоматически считаются прочитанными.
-    fun getMessages(userId: Int, messageId: Int): List<Message> {
-        val chat = chats[userId] ?: throw NotFoundException("Нет чатов")
-        return chat.messages.filter { !it.deleted && it.type == "in" }.takeLast(messageId).onEach { it.read = true }
-    }
+    fun getMessages(userId: Int, messageId: Int): List<Message> =
+        chats[userId]
+            .let { it?.messages ?: throw NotFoundException("Нет чатов") }
+            .asSequence()
+            .filter { !it.deleted && it.type == "in" }
+            .drop(messageId)
+            .onEach { it.read = true }
+            .toList()
 
     //1. Видеть, сколько чатов не прочитано (например, service.getUnreadChatsCount). В каждом из таких чатов есть хотя бы одно непрочитанное сообщение.
-    fun getUnreadChatsCount(): Int {
-        fun size() = chats.values.map { chat ->
-            chat.messages.filter { !it.read && it.type == "in" }.size
-        }
-
-        val count = size().filter { it != 0 }.size
-        return count
-    }
+    fun getUnreadChatsCount() = chats.values
+        .count { it -> it.messages.any { !it.read && it.type == "in" } }
 
     //2. Получить список чатов (например, service.getChats).
     fun getChats(): Map<Int, Chat> {
@@ -71,8 +73,10 @@ object ChatService {
 
     //6. Удалить сообщение.
     fun deleteMessage(chatId: Int, messageId: Int): Boolean {
-        val chat = chats[chatId] ?: throw NotFoundException("Нет чатов")
-        chat.messages.take(messageId).onEach { it.deleted = true }
+        chats[chatId]
+            .let { it?.messages ?: throw NotFoundException("Нет чатов") }
+            .take(messageId)
+            .onEach { it.deleted = true }
         return true
     }
 
@@ -84,8 +88,10 @@ object ChatService {
 
     //Изменить исходящее сообщение
     fun editMessage(chatId: Int, messageId: Int, newText: String): Boolean {
-        val chat = chats[chatId] ?: throw NotFoundException("Нет чатов")
-        chat.messages.take(messageId).onEach { it.text = newText }
+        chats[chatId]
+            .let { it?.messages ?: throw NotFoundException("Нет чатов") }
+            .take(messageId)
+            .onEach { it.text = newText }
         return true
     }
 
@@ -100,3 +106,4 @@ object ChatService {
     }
 
 }
+

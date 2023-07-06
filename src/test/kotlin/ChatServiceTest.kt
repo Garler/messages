@@ -30,7 +30,7 @@ class ChatServiceTest {
     fun lastMessages() {
         val message1 = Message(type = "in", text = "Hi")
         ChatService.addMessage(1, message1)
-        val expected = listOf(message1.text)
+        val expected = message1.text
         val result = ChatService.lastMessages()
         assertEquals(expected, result)
     }
@@ -45,8 +45,10 @@ class ChatServiceTest {
     @Test
     fun getMessages() {
         val message1 = Message(1, type = "in", text = "Hi", false, true)
+        val message2 = Message(2, type = "in", text = "How are you?", false, true)
         ChatService.addMessage(1, message1)
-        val expected = listOf(message1)
+        ChatService.addMessage(1, message2)
+        val expected = listOf(message2)
         val result = ChatService.getMessages(1, 1)
         assertEquals(expected, result)
     }
